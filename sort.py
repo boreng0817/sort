@@ -334,8 +334,8 @@ if __name__ == '__main__':
         if(display):
           fig.canvas.flush_events()
           plt.draw()
-          # path = os.path.join(save_path, seq, '%06d.jpg'%(frame))
-          # fig.savefig(path)
+          path = os.path.join(save_path, seq, '%06d.jpg'%(frame))
+          fig.savefig(path)
           ax1.cla()
 
   print("Total Tracking took: %.3f seconds for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
