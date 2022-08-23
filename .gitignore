@@ -7,3 +7,4 @@ MOT15*
 YOLOX/pretrained/*
 YOLOX/YOLOX_outputs
 YOLOX/det
+*__pycache__*
