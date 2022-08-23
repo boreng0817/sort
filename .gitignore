@@ -3,3 +3,7 @@ video_output/
 sort/
 mot_benchmark
 MOT15*
+
+YOLOX/pretrained/*
+YOLOX/YOLOX_outputs
+YOLOX/det
