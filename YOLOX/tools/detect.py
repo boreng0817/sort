@@ -23,7 +23,7 @@ IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX Demo!")
     parser.add_argument(
-        "demo", default="image", help="demo type, eg. image, video and webcam"
+        "detect", default="image", help="demo type, eg. image, video and webcam"
     )
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
@@ -198,7 +198,36 @@ class Predictor(object):
         return vis_res, det
 
 
-def image_demo(predictor, vis_folder, path, current_time, save_result):
+    def detect(self, output, frame, img_info):
+        det = []
+        ratio = img_info["ratio"]
+        if output is None:
+            return img
+        output = output.cpu()
+
+        bboxes = output[:, 0:4]
+
+        # preprocessing: resize
+        bboxes /= ratio
+
+        cls = output[:, 6]
+        scores = output[:, 4] * output[:, 5]
+
+        N = len(bboxes)
+        for i in range(N):
+            if cls[i] != 0.0:
+                continue
+            x0, y0, x1, y1 = bboxes[i]
+            x = (x0 + x1) / 2
+            y = (y0 + y1) / 2
+            w = (x1 - x0)
+            h = (y1 - y0)
+            output_string = "{},-1,{},{},{},{},{},-1,-1,-1".format(frame, x0, y1 - h, w, h, scores[i])
+            det.append(output_string)
+
+        return det
+
+def detect_image(predictor, vis_folder, path, current_time, save_result):
     det = []
     if os.path.isdir(path):
         files = get_image_list(path)
@@ -208,19 +237,12 @@ def image_demo(predictor, vis_folder, path, current_time, save_result):
     for image_name in files:
         outputs, img_info = predictor.inference(image_name)
         current_frame = utils.path_to_frame_number(image_name)
-        result_image, det_string = predictor.visual(outputs[0], current_frame, img_info, predictor.confthre)
-        det += det_string
+        det += predictor.detect(outputs[0], current_frame, img_info)
         if save_result:
             save_folder = os.path.join(
                 vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
             )
             os.makedirs(save_folder, exist_ok=True)
-            save_file_name = os.path.join(save_folder, os.path.basename(image_name))
-            logger.info("Saving detection result in {}".format(save_file_name))
-            cv2.imwrite(save_file_name, result_image)
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
     
     txt_path = "./det/%s"%(time.strftime("%Y_%m_%d_%H_%M_%S"))
     if not os.path.exists(txt_path):
@@ -229,8 +251,7 @@ def image_demo(predictor, vis_folder, path, current_time, save_result):
     f.write("\n".join(det))
     f.close()
 
-
-def imageflow_demo(predictor, vis_folder, current_time, args):
+def detect_imageflow(predictor, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
@@ -255,8 +276,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
         if ret_val:
             outputs, img_info = predictor.inference(frame)
-            result_frame, det_string = predictor.visual(outputs[0], current_frame, img_info, predictor.confthre)
-            det += det_string
+            det += predictor.detect(outputs[0], current_frame, img_info)
             if args.save_result:
                 vid_writer.write(result_frame)
                 txt_path = "./det/%s"%(time.strftime("%Y_%m_%d_%H_%M_%S"))
@@ -273,6 +293,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
                 break
         else:
             break
+
 
 
 def main(exp, args):
@@ -341,10 +362,10 @@ def main(exp, args):
         args.device, args.fp16, args.legacy,
     )
     current_time = time.localtime()
-    if args.demo == "image":
-        image_demo(predictor, vis_folder, args.path, current_time, args.save_result)
-    elif args.demo == "video" or args.demo == "webcam":
-        imageflow_demo(predictor, vis_folder, current_time, args)
+    if args.detect == "image":
+        detect_image(predictor, vis_folder, args.path, current_time, args.save_result)
+    elif args.detect == "video" or args.demo == "webcam":
+        detect_imageflow(predictor, vis_folder, current_time, args)
 
 
 if __name__ == "__main__":
