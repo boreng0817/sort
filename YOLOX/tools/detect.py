@@ -238,13 +238,8 @@ def detect_image(predictor, vis_folder, path, current_time, save_result):
         outputs, img_info = predictor.inference(image_name)
         current_frame = utils.path_to_frame_number(image_name)
         det += predictor.detect(outputs[0], current_frame, img_info)
-        if save_result:
-            save_folder = os.path.join(
-                vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
-            )
-            os.makedirs(save_folder, exist_ok=True)
     
-    txt_path = "./det/%s"%(time.strftime("%Y_%m_%d_%H_%M_%S"))
+    txt_path = os.path.join("../data/train/", utils.path_to_output_name(path), "det")
     if not os.path.exists(txt_path):
         os.makedirs(txt_path)
     f = open(os.path.join(txt_path, "det.txt"), "w+")
