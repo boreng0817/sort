@@ -1,6 +1,6 @@
 #!/bin/bash
 cd YOLOX
-source colab.sh
+./colab.sh $1
 cd ..
 
 python sort.py
