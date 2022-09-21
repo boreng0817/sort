@@ -207,7 +207,7 @@ class Sort(object):
     self.trackers = []
     self.frame_count = 0
 
-  def update(self, dets=np.empty((0, 5))):
+  def update(self, dets=np.empty((0, 5)), dets_low=np.empty((0, 5))):
     """
     Params:
       dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
@@ -229,16 +229,29 @@ class Sort(object):
     trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
     for t in reversed(to_del):
       self.trackers.pop(t)
+
     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets,trks, self.iou_threshold)
+
+    # remaining tracks from [trks]
+    if len(unmatched_trks) != 0:
+      remained_trks = trks[unmatched_trks]
+    else:
+      remained_trks = []
+
+    matched_low, unmatched_dets_low, unmatched_trks_low = associate_detections_to_trackers(dets_low, remained_trks, self.iou_threshold)
 
     # update matched trackers with assigned detections
     for m in matched:
       self.trackers[m[1]].update(dets[m[0], :])
+    for m in matched_low:
+      self.trackers[unmatched_trks[m[1]]].update(dets_low[m[0], :])
 
     # create and initialise new trackers for unmatched detections
+
     for i in unmatched_dets:
         trk = KalmanBoxTracker(dets[i,:])
         self.trackers.append(trk)
+
     i = len(self.trackers)
     for trk in reversed(self.trackers):
         d = trk.get_state()[0]
@@ -266,6 +279,7 @@ def parse_args():
                         type=int, default=3)
     parser.add_argument("--iou_threshold", help="Minimum IOU for match.", type=float, default=0.3)
     parser.add_argument("--save_path", help="save output to video", type=str, default="video_output")
+    parser.add_argument("--det_threshold", help="threshold for detection", type=float, default=0.5)
     args = parser.parse_args()
     return args
 
@@ -275,9 +289,11 @@ if __name__ == '__main__':
   display = args.display
   save_path = args.save_path
   phase = args.phase
+  det_threshold = args.det_threshold
   total_time = 0.0
   total_frames = 0
   colours = np.random.rand(32, 3) #used only for display
+
   if(display):
     if not os.path.exists('mot_benchmark'):
       print('\n\tERROR: mot_benchmark link not found!\n\n    Create a symbolic link to the MOT benchmark\n    (https://motchallenge.net/data/2D_MOT_2015/#download). E.g.:\n\n    $ ln -s /path/to/MOT2015_challenge/2DMOT2015 mot_benchmark\n\n')
@@ -321,7 +337,19 @@ if __name__ == '__main__':
           plt.title(seq + ' Tracked Targets')
 
         start_time = time.time()
-        trackers = mot_tracker.update(dets)
+        ## 
+        # split detections into 2 group
+        scores = dets[:, 4]
+        index_high = scores >= det_threshold
+        index_low = scores < det_threshold
+        dets_high = dets[index_high]
+        dets_low = dets[index_low]
+
+        ##
+
+
+        ##
+        trackers = mot_tracker.update(dets_high, dets_low)
         cycle_time = time.time() - start_time
         total_time += cycle_time
 

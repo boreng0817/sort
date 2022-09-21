@@ -5,6 +5,7 @@
 import argparse
 import os
 import time
+from sys import stderr
 from loguru import logger
 
 import cv2
@@ -18,6 +19,9 @@ from yolox.utils import fuse_model, get_model_info, postprocess, vis
 from detect_util import utils
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
+
+logger.remove()
+logger.add(stderr, level="INFO")
 
 
 def make_parser():
@@ -163,7 +167,7 @@ class Predictor(object):
                 outputs, self.num_classes, self.confthre,
                 self.nmsthre, class_agnostic=True
             )
-            logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+            logger.debug("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
 
     def visual(self, output, frame, img_info, cls_conf=0.35):
